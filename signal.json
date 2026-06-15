@@ -1,0 +1,17 @@
+{
+  "intersection": "すずかけ通り西",
+  "lat": 35.46061793874483,
+  "lon": 139.62663178000918,
+  "phases": {
+    "NS": {
+      "base_time": "203601",
+      "green_sec": 31,
+      "red_sec": 89
+    },
+    "EW": {
+      "base_time": "203659",
+      "green_sec": 30,
+      "red_sec": 90
+    }
+  }
+}
