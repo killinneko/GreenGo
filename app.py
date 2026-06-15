@@ -38,6 +38,8 @@ def get_signal(cfg: dict, now_ts: float) -> tuple[str, int]:
 
 
 def build_map_html() -> str:
+    ns_state, ns_remaining = get_signal(SIGNAL["NS"], datetime.datetime.now().timestamp())
+    ew_state, ew_remaining = get_signal(SIGNAL["EW"], datetime.datetime.now().timestamp())
     payload = {
         "lat": LAT,
         "lon": LON,
@@ -46,11 +48,15 @@ def build_map_html() -> str:
                 "base_ts": parse_base_time(SIGNAL["NS"]["base_time"]),
                 "green_sec": SIGNAL["NS"]["green_sec"],
                 "red_sec": SIGNAL["NS"]["red_sec"],
+                "initial_state": ns_state,
+                "initial_remaining": ns_remaining,
             },
             "EW": {
                 "base_ts": parse_base_time(SIGNAL["EW"]["base_time"]),
                 "green_sec": SIGNAL["EW"]["green_sec"],
                 "red_sec": SIGNAL["EW"]["red_sec"],
+                "initial_state": ew_state,
+                "initial_remaining": ew_remaining,
             },
         },
     }
@@ -259,74 +265,77 @@ st.query_params["dir"] = query_direction
 active_direction = query_direction
 
 st.markdown(
-    """
-<link
-  href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
-  rel="stylesheet"
-  integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
-  crossorigin="anonymous"
->
+    f"""
 <style>
-#MainMenu, footer, header {
+#MainMenu, footer, header {{
     visibility: hidden;
-}
+}}
 
-.block-container {
+.block-container {{
     padding-top: 1rem;
     padding-bottom: 0;
-}
+}}
 
-.direction-switch {
+.direction-switch {{
     display: flex;
     align-items: stretch;
     gap: 0.5rem;
     margin-top: 0.85rem;
     width: 100%;
-}
+    overflow: hidden;
+}}
 
-.direction-button {
+.direction-button {{
     display: flex;
     align-items: center;
     justify-content: center;
+    min-width: 0;
     height: 3.45rem;
     border-radius: 18px;
+    border: 1px solid rgba(15, 23, 42, 0.14);
+    background: #ffffff;
+    color: #1f2937;
     font-size: 0.86rem;
     font-weight: 800;
     text-decoration: none;
     white-space: nowrap;
     box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
-}
+    transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+}}
 
-.direction-button.ns {
+.direction-button.ns {{
+    flex: 1.22 1 0;
     border-width: 2px;
-}
+}}
 
-.direction-button.btn-dark {
+.direction-button.ew {{
+    flex: 0.78 1 0;
+}}
+
+.direction-button.active {{
+    background: #111827;
+    color: #f9fafb;
+    border-color: #111827;
     box-shadow: 0 14px 26px rgba(15, 23, 42, 0.22);
-}
+}}
 
-.direction-button.btn-outline-secondary {
-    color: #1f2937;
-    border-color: rgba(15, 23, 42, 0.14);
-}
-
-@media (max-width: 640px) {
-    .block-container {
+@media (max-width: 640px) {{
+    .block-container {{
         padding-left: 0.75rem;
         padding-right: 0.75rem;
-    }
+    }}
 
-    .direction-switch {
+    .direction-switch {{
         gap: 0.45rem;
-    }
+    }}
 
-    .direction-button {
+    .direction-button {{
         height: 3.35rem;
         border-radius: 16px;
         font-size: 0.78rem;
         padding: 0 0.2rem;
-    }
-}
+    }}
+}}
 </style>
 """,
     unsafe_allow_html=True,
@@ -337,10 +346,10 @@ components.html(build_map_html(), height=540, scrolling=False)
 st.markdown(
     f"""
 <div class="direction-switch">
-  <a class="direction-button ns btn {'btn-dark' if active_direction == 'NS' else 'btn-outline-secondary'} flex-fill" href="?dir=NS" target="_self">
+  <a class="direction-button ns {'active' if active_direction == 'NS' else ''}" href="?dir=NS" target="_self">
     横浜・新高島
   </a>
-  <a class="direction-button ew btn {'btn-dark' if active_direction == 'EW' else 'btn-outline-secondary'} flex-fill" href="?dir=EW" target="_self">
+  <a class="direction-button ew {'active' if active_direction == 'EW' else ''}" href="?dir=EW" target="_self">
     高島町
   </a>
 </div>
