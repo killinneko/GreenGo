@@ -267,6 +267,7 @@ st.markdown(
 div[data-testid="stHorizontalBlock"] {
     gap: 0.75rem;
     flex-wrap: nowrap;
+    align-items: stretch;
 }
 
 div[data-testid="column"] {
@@ -274,6 +275,8 @@ div[data-testid="column"] {
 }
 
 div.stButton > button {
+    width: 100%;
+    min-width: 0;
     height: 3.5rem;
     border-radius: 18px;
     border: 1px solid rgba(15, 23, 42, 0.12);
@@ -281,6 +284,7 @@ div.stButton > button {
     color: #1f2937;
     font-size: 1rem;
     font-weight: 800;
+    white-space: nowrap;
     box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
 }
 
@@ -317,15 +321,22 @@ div[data-testid="column"]:first-child div.stButton > button {
         flex-wrap: nowrap;
     }
 
-    div[data-testid="stHorizontalBlock"] > div {
-        flex: 1 1 0;
-        width: 0;
+    div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:first-child {
+        flex: 0 1 58% !important;
+        width: 58% !important;
+        min-width: 0 !important;
+    }
+
+    div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:last-child {
+        flex: 0 1 42% !important;
+        width: 42% !important;
+        min-width: 0 !important;
     }
 
     div.stButton > button {
         height: 3.45rem;
         border-radius: 16px;
-        font-size: 0.95rem;
+        font-size: 0.82rem;
         padding-left: 0.25rem;
         padding-right: 0.25rem;
     }
@@ -337,7 +348,7 @@ div[data-testid="column"]:first-child div.stButton > button {
 
 components.html(build_map_html(active_direction), height=540, scrolling=False)
 
-col_ns, col_ew = st.columns(2, gap="small")
+col_ns, col_ew = st.columns([1.4, 1], gap="small")
 
 with col_ns:
     st.button(
