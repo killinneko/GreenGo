@@ -37,27 +37,28 @@ def get_signal(cfg: dict, now_ts: float) -> tuple[str, int]:
     return "red", max(1, math.ceil(cycle - phase))
 
 
-def direction_label(direction_key: str) -> str:
-    return "横浜・新高島" if direction_key == "NS" else "高島町"
-
-
-def select_direction(direction_key: str) -> None:
-    st.session_state.direction_key = direction_key
-
-
-def build_map_html(direction_key: str) -> str:
-    phase = SIGNAL[direction_key]
-    state, remaining = get_signal(phase, datetime.datetime.now().timestamp())
+def build_map_html() -> str:
+    ns_state, ns_remaining = get_signal(SIGNAL["NS"], datetime.datetime.now().timestamp())
+    ew_state, ew_remaining = get_signal(SIGNAL["EW"], datetime.datetime.now().timestamp())
     payload = {
         "lat": LAT,
         "lon": LON,
-        "phase": {
-            "base_ts": parse_base_time(phase["base_time"]),
-            "green_sec": phase["green_sec"],
-            "red_sec": phase["red_sec"],
+        "phases": {
+            "NS": {
+                "base_ts": parse_base_time(SIGNAL["NS"]["base_time"]),
+                "green_sec": SIGNAL["NS"]["green_sec"],
+                "red_sec": SIGNAL["NS"]["red_sec"],
+                "initial_state": ns_state,
+                "initial_remaining": ns_remaining,
+            },
+            "EW": {
+                "base_ts": parse_base_time(SIGNAL["EW"]["base_time"]),
+                "green_sec": SIGNAL["EW"]["green_sec"],
+                "red_sec": SIGNAL["EW"]["red_sec"],
+                "initial_state": ew_state,
+                "initial_remaining": ew_remaining,
+            },
         },
-        "initial_state": state,
-        "initial_remaining": remaining,
     }
     payload_json = json.dumps(payload, ensure_ascii=False).replace("</", "<\\/")
 
@@ -144,11 +145,17 @@ def build_map_html(direction_key: str) -> str:
 <script>
   const payload = {payload_json};
 
-  function computeSignal(nowSec) {{
-    const green = payload.phase.green_sec;
-    const red = payload.phase.red_sec;
+  function getDirection() {{
+    const params = new URLSearchParams(window.parent.location.search);
+    return params.get("dir") === "EW" ? "EW" : "NS";
+  }}
+
+  function computeSignal(directionKey, nowSec) {{
+    const phaseCfg = payload.phases[directionKey];
+    const green = phaseCfg.green_sec;
+    const red = phaseCfg.red_sec;
     const cycle = green + red;
-    let phase = (nowSec - payload.phase.base_ts) % cycle;
+    let phase = (nowSec - phaseCfg.base_ts) % cycle;
 
     if (phase < 0) {{
       phase += cycle;
@@ -183,6 +190,9 @@ def build_map_html(direction_key: str) -> str:
       return;
     }}
 
+    const directionKey = getDirection();
+    const initialSignal = computeSignal(directionKey, Date.now() / 1000);
+
     const map = L.map("map", {{
       zoomControl: false,
       attributionControl: true,
@@ -201,7 +211,7 @@ def build_map_html(direction_key: str) -> str:
 
     const icon = L.divIcon({{
       className: "signal-marker-wrapper",
-      html: createBadgeHtml(payload.initial_state, payload.initial_remaining),
+      html: createBadgeHtml(initialSignal.state, initialSignal.remaining),
       iconSize: [56, 56],
       iconAnchor: [28, 28],
     }});
@@ -223,7 +233,7 @@ def build_map_html(direction_key: str) -> str:
       let lastKey = "";
 
       function render() {{
-        const signal = computeSignal(Date.now() / 1000);
+        const signal = computeSignal(directionKey, Date.now() / 1000);
         const nextKey = signal.state + "-" + signal.remaining;
         if (nextKey === lastKey) {{
           return;
@@ -247,125 +257,102 @@ def build_map_html(direction_key: str) -> str:
 """
 
 
-if "direction_key" not in st.session_state:
-    st.session_state.direction_key = "NS"
+query_direction = st.query_params.get("dir")
+if query_direction not in {"NS", "EW"}:
+    query_direction = "NS"
+st.query_params["dir"] = query_direction
 
-active_direction = st.session_state.direction_key
+active_direction = query_direction
 
 st.markdown(
-    """
+    f"""
 <style>
-#MainMenu, footer, header {
+#MainMenu, footer, header {{
     visibility: hidden;
-}
+}}
 
-.block-container {
+.block-container {{
     padding-top: 1rem;
     padding-bottom: 0;
-}
+}}
 
-div[data-testid="stHorizontalBlock"] {
-    gap: 0.75rem;
-    flex-wrap: nowrap;
+.direction-switch {{
+    display: flex;
     align-items: stretch;
-}
-
-div[data-testid="column"] {
-    min-width: 0;
-}
-
-div.stButton > button {
+    gap: 0.5rem;
+    margin-top: 0.85rem;
     width: 100%;
+    overflow: hidden;
+}}
+
+.direction-button {{
+    display: flex;
+    align-items: center;
+    justify-content: center;
     min-width: 0;
-    height: 3.5rem;
+    height: 3.45rem;
     border-radius: 18px;
-    border: 1px solid rgba(15, 23, 42, 0.12);
+    border: 1px solid rgba(15, 23, 42, 0.14);
     background: #ffffff;
     color: #1f2937;
-    font-size: 1rem;
+    font-size: 0.86rem;
     font-weight: 800;
+    text-decoration: none;
     white-space: nowrap;
     box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
-}
+    transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+}}
 
-div.stButton > button[kind="primary"] {
+.direction-button.ns {{
+    flex: 1.22 1 0;
+    border-width: 2px;
+}}
+
+.direction-button.ew {{
+    flex: 0.78 1 0;
+}}
+
+.direction-button.active {{
     background: #111827;
     color: #f9fafb;
     border-color: #111827;
     box-shadow: 0 14px 26px rgba(15, 23, 42, 0.22);
-}
+}}
 
-div.stButton > button[kind="secondary"] {
-    background: #ffffff;
-    color: #1f2937;
-    border-color: rgba(15, 23, 42, 0.14);
-    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
-}
-
-div.stButton > button:hover {
-    border-color: rgba(15, 23, 42, 0.3);
-}
-
-div[data-testid="column"]:first-child div.stButton > button {
-    border-width: 2px;
-}
-
-@media (max-width: 640px) {
-    .block-container {
+@media (max-width: 640px) {{
+    .block-container {{
         padding-left: 0.75rem;
         padding-right: 0.75rem;
-    }
+    }}
 
-    div[data-testid="stHorizontalBlock"] {
-        gap: 0.5rem;
-        flex-wrap: nowrap;
-    }
+    .direction-switch {{
+        gap: 0.45rem;
+    }}
 
-    div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:first-child {
-        flex: 0 1 58% !important;
-        width: 58% !important;
-        min-width: 0 !important;
-    }
-
-    div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:last-child {
-        flex: 0 1 42% !important;
-        width: 42% !important;
-        min-width: 0 !important;
-    }
-
-    div.stButton > button {
-        height: 3.45rem;
+    .direction-button {{
+        height: 3.35rem;
         border-radius: 16px;
-        font-size: 0.82rem;
-        padding-left: 0.25rem;
-        padding-right: 0.25rem;
-    }
-}
+        font-size: 0.78rem;
+        padding: 0 0.2rem;
+    }}
+}}
 </style>
 """,
     unsafe_allow_html=True,
 )
 
-components.html(build_map_html(active_direction), height=540, scrolling=False)
+components.html(build_map_html(), height=540, scrolling=False)
 
-col_ns, col_ew = st.columns([1.4, 1], gap="small")
-
-with col_ns:
-    st.button(
-        "横浜・新高島",
-        key="direction_ns",
-        type="primary" if active_direction == "NS" else "secondary",
-        use_container_width=True,
-        on_click=select_direction,
-        args=("NS",),
-    )
-
-with col_ew:
-    st.button(
-        "高島町",
-        key="direction_ew",
-        type="primary" if active_direction == "EW" else "secondary",
-        use_container_width=True,
-        on_click=select_direction,
-        args=("EW",),
-    )
+st.markdown(
+    f"""
+<div class="direction-switch">
+  <a class="direction-button ns {'active' if active_direction == 'NS' else ''}" href="?dir=NS" target="_self">
+    横浜・新高島
+  </a>
+  <a class="direction-button ew {'active' if active_direction == 'EW' else ''}" href="?dir=EW" target="_self">
+    高島町
+  </a>
+</div>
+""",
+    unsafe_allow_html=True,
+)
